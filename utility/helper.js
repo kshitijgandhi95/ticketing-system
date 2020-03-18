@@ -9,7 +9,7 @@ module.exports.validateSeatNum = function (seatNum) {
 }
 
 module.exports.validateUserDetails = function (userDetails) {
-    if (userDetails.phoneNumber && userDetails.emailId && userDetails.name) {
+    if (userDetails.emailId && userDetails.name) {
         return true
     }
     return false;
@@ -23,10 +23,9 @@ module.exports.extractTicketNum = function (tickets) {
     return returnArr;
 }
 
-module.exports.createUser = function (ph, email, name) {
+module.exports.createUser = function (email, name) {
     return new User({
         _id: Date.now(),
-        phoneNumber: ph,
         emailId: email,
         name: name,
         isAdmin: false
