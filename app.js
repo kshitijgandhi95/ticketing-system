@@ -10,7 +10,6 @@ app.use('/', ticketRoutes);
 
 app.listen(3000);
 
-
 mongoose.connect('mongodb://localhost/ticketSys',
     {
         useNewUrlParser: true,

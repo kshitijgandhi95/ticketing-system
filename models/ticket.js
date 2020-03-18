@@ -3,7 +3,7 @@ const mongoose = require ('mongoose');
 const ticketSchema = new mongoose.Schema (
     {
         _id: {
-            type: String
+            type: Number
         },
         status: {
             type: Boolean

@@ -1,0 +1,33 @@
+cancel-ticket
+    type - post
+    body - {
+        "seatNum": <number>
+    }
+
+book-ticket
+    type - post
+    body - {
+        "seatNum": <number>
+        "userDetails": {
+		"name": <string>,
+		"phoneNumber": <number>,
+		"emailId": <string>
+	    }
+    }
+
+ticket-status/id 
+    type - get
+    id represents seat number       
+     
+available-tickets
+    type - get
+
+reset/id
+    type - get
+    id represents admin id - is set to 2345
+
+
+helper function
+mongo helper
+readme
+add migartion module to package.json

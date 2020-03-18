@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.1",
+    "migrate-mongo": "^7.1.0",
     "mongoose": "^5.9.4",
     "nodemon": "^2.0.2"
   }

@@ -2,6 +2,9 @@ const mongoose = require ('mongoose');
 
 const userSchema = mongoose.Schema (
     {
+        _id: {
+            type: Number
+        },
         emailId: {
             type: String
         },
@@ -16,9 +19,5 @@ const userSchema = mongoose.Schema (
         }
     }
 )
-
-// userSchema.virtual('phoneNumber').get(function() {
-//     return this._id;
-// });
 
 module.exports = mongoose.model ('User', userSchema);
