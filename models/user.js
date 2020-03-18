@@ -8,9 +8,6 @@ const userSchema = mongoose.Schema (
         emailId: {
             type: String
         },
-        phoneNUmber: {
-            type: Number
-        },
         name: {
             type: String
         },
