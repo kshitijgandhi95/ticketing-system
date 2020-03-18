@@ -63,7 +63,7 @@ router.post('/book-ticket', async (req, res) => {
             res.send("Seat already booked");
         }
         else {
-            const user = helper.createUser (userDetails.phoneNumber, userDetails.emailId, userDetails.name)
+            const user = helper.createUser (userDetails.emailId, userDetails.name)
             user.save()
                 .then((user) => {
                     answ = helper.addBookingDtls (answ, user._id);
@@ -108,6 +108,34 @@ router.get('/ticket-status/:id', async (req, res) => {
         res.status (500)
         res.send ("Oops something went wrong");
     }
+})
+
+router.get ('/person-details/:id', async (req, res) => {
+    let seatNum = parseInt(req.params.id);
+    if (!helper.validateSeatNum(seatNum)) {
+        res.status (400);
+        res.send ("Invalid seat number, seat number should be between 1-40")
+    }
+    try {
+        let answ = await Ticket.findById(seatNum);
+        res.status (200);
+        if (!answ.status) {
+            res.send ("Ticket is not booked")
+        }
+        let personDtls = await User.findById (answ.userId);
+        res.status (200);
+        let returnObj = {
+            "emailId": personDtls.emailId,
+            "name": personDtls.name,
+            "phoneNumber": personDtls.phoneNumber
+        }
+        res.send (returnObj)
+    }
+    catch (err) {
+        res.status (500)
+        res.send ("Oops something went wrong");
+    }
+
 })
 
 router.get('/available-tickets', async (req, res) => {
