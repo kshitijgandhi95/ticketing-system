@@ -6,13 +6,20 @@ const userSchema = mongoose.Schema (
             type: Number
         },
         emailId: {
-            type: String
+            type: String,
+            unique: true
         },
         name: {
             type: String
         },
         isAdmin: {
             type: Boolean
+        },
+        password: {
+            type: String
+        },
+        tickets: {
+            type : Array
         }
     }
 )

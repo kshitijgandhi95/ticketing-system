@@ -1,5 +1,6 @@
 const Ticket = require('./../models/ticket');
 const User = require('./../models/user');
+const jwt = require('jsonwebtoken');
 
 module.exports.validateSeatNum = function (seatNum) {
     if (seatNum > 0 && seatNum <= 40) {
@@ -23,12 +24,14 @@ module.exports.extractTicketNum = function (tickets) {
     return returnArr;
 }
 
-module.exports.createUser = function (email, name) {
+module.exports.createUser = function (email, name, password) {
     return new User({
         _id: Date.now(),
         emailId: email,
         name: name,
-        isAdmin: false
+        isAdmin: false,
+        password: password,
+        tickets: []
     })
 }
 
@@ -39,7 +42,29 @@ module.exports.addBookingDtls = function (ticket, id) {
 }
 
 module.exports.removeBookingDtls = function (ticket) {
-    ticket.staus = false;
+    ticket.status = false;
     ticket.userId = null;
     return ticket;
+}
+
+module.exports.verifyToken = function (token, secretKey) {
+    return new Promise ((resolve, reject) => {
+        jwt.verify(token, secretKey, (err, authData) => {
+
+            if (err) {
+                reject ()
+            } else {
+                resolve(authData)
+            }
+        });
+    })
+}
+
+module.exports.getToken = function (token) {
+    if (!token) {
+        return null;
+    }
+    const bearer = token.split(' ');
+    const bearerToken = bearer[1];
+    return bearerToken;
 }

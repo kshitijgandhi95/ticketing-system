@@ -3,9 +3,31 @@ const router = express.Router();
 const Ticket = require('./../models/ticket');
 const User = require('./../models/user');
 const helper = require('./../utility/helper');
+const secretKey = process.env.SECRETKEY || "secretKey"
 
+router.use ('/', (req, res, next) => {
+    let token = helper.getToken (req.headers['authorization']);
+    if (!token) {
+        res.status (400);
+        res.send ("No token found")
+    }
+    else {
+        helper.verifyToken (token, secretKey)
+        .then ((authData) => {
+            res.locals.authData = authData.payload;
+            next()
+        },
+        (err) => {
+            res.status (400);
+            res.send ("Invalid token")
+        })
+    }
+})
 router.post ('/cancel-ticket', async (req, res) => {
     let seatNum = req.body.seatNum;
+    let authData = res.locals.authData;
+    let reqUserId = authData.dtl.id;
+
     if (!helper.validateSeatNum(seatNum)) {
         res.status (400);
         res.send ("Invalid seat number, seat number should be between 1-40");
@@ -18,22 +40,44 @@ router.post ('/cancel-ticket', async (req, res) => {
         }
         else {
             let userId = answ.userId;
-            User.deleteOne ({_id:userId}, (err, ans) => {
-                if (err) {
-                    res.status(500);
-                    res.send("Oops something went wrong")
-                }
-                answ = helper.removeBookingDtls(answ)
-                answ.save()
-                    .then(() => {
-                        res.status (200);
-                        res.send ("Ticket cancelled successfully");
+            if (!userId) {
+                res.status(400);
+            }
+            if (userId != reqUserId) {
+                res.status (400);
+                res.send ("Seat not booked by you")
+            }
+            else {
+                try {
+                    let user = await User.findById (reqUserId);
+                    let tickets = user.tickets;
+                    let index = tickets.indexOf (seatNum);
+                    tickets.splice (index,1);
+
+                    user.save()
+                    .then (()=> {
+                        answ = helper.removeBookingDtls(answ)
+                        answ.save()
+                        .then(() => {
+                            res.status (200);
+                            res.send ("Ticket cancelled successfully");
+                        },
+                        (err) => {
+                            res.status (500);
+                            res.send ("Oops something went wrong")
+                        })
                     },
                     (err) => {
                         res.status (500);
                         res.send ("Oops something went wrong")
                     })
-            })
+                }
+                catch (err) {
+                    res.status (500)
+                    res.send ("Oops something went wrong");
+                }
+                    
+            }
         }
     }
     catch (err) {
@@ -44,17 +88,12 @@ router.post ('/cancel-ticket', async (req, res) => {
 
 router.post('/book-ticket', async (req, res) => {
     let seatNum = req.body.seatNum;
-    let userDetails = req.body.userDetails;
+    let authData = res.locals.authData;
+    let userId = authData.dtl.id;
 
     if (!helper.validateSeatNum(seatNum)) {
         res.status(400)
         res.send("Invalid seat number, seat number should be between 1-40");
-    }
-
-    if (!helper.validateUserDetails(userDetails)) {
-        //set code
-        res.status(400)
-        res.send("Invalid user details, user details must contain phone number, email id and name");
     }
     try {
         let answ = await Ticket.findById(seatNum);
@@ -63,25 +102,24 @@ router.post('/book-ticket', async (req, res) => {
             res.send("Seat already booked");
         }
         else {
-            const user = helper.createUser (userDetails.emailId, userDetails.name)
-            user.save()
-                .then((user) => {
-                    answ = helper.addBookingDtls (answ, user._id);
-                    answ.save ()
-                    .then (()=>{
+            try {
+                User.findByIdAndUpdate (userId, {"$push": {"tickets": seatNum}},{ "new": true, "upsert": true }, (err, user) => {
+                    answ = helper.addBookingDtls (answ, userId);
+                    answ.save()
+                    .then(() => {
                         res.status(200)
                         res.send("Ticket booked succesfully");
                     },
-                    (err)=>{
+                    (err) => {
                         res.status(500)
                         res.send("Oops something went wrong")
-                    })
-                    
-                },
-                (err) => {
-                    res.status(500)
-                    res.send("Oops something went wrong")
+                    })  
                 })
+            }
+            catch (err) {
+                res.status(500)
+                res.send("Oops something went wrong")
+            }
         }
     }
     catch (err) {
@@ -174,42 +212,67 @@ router.get('/booked-tickets', async (req, res) => {
     }
 })
 
-router.post ('/reset', async (req, res) => {
-    let userId = req.body.userId;
-    try {
-        let user = await User.findById (userId);
-        if (!user) {
-            res.status (400);
-            res.send ("Not a valid user")
-        }
-        if (user.isAdmin) {
-            Ticket.updateMany ({}, {
-                status: false,
-                userId: null
-            }, (err, answ) => {
-                if (err) {
-                    res.status(500);
-                    res.send ("Oops something went wrong");
-                }
-                User.deleteMany ({isAdmin: false}, (err, answ) => {
+router.get ('/reset', async (req, res) => {
+    let accessLevel = res.locals.authData.dtl.acc;
+    if (accessLevel == 1) {
+        res.status(400);
+        res.send ("Unauthorized user")
+    }
+    else {
+        Ticket.updateMany ({}, {status:false, userId:null}, (err) => {
+            if (err) {
+                res.status(500);
+                res.send ("Oops something went wrong");
+            }
+            else {
+                User.updateMany ({}, {tickets: []}, (err) => {
                     if (err) {
                         res.status(500);
                         res.send ("Oops something went wrong");
+                    } 
+                    else {
+                        res.status (200);
+                        res.send ("Tickets resetted");
                     }
-                    res.status (200);
-                    res.send ("Tickets resetted");
                 })
-            })
-        }
-        else {
-            res.status (400);
-            res.send ("Sorry only admin can reset the tickets");
-        }
+            }
+        })
     }
-    catch (err) {
-        res.status (500)
-        res.send ("Oops something went wrong");
-    }
-        
+    // else {
+    //     try {
+    //         let user = await User.findById (userId);
+    //         if (!user) {
+    //             res.status (400);
+    //             res.send ("Not a valid user")
+    //         }
+    //         if (user.isAdmin) {
+    //             Ticket.updateMany ({}, {
+    //                 status: false,
+    //                 userId: null
+    //             }, (err, answ) => {
+    //                 if (err) {
+    //                     res.status(500);
+    //                     res.send ("Oops something went wrong");
+    //                 }
+    //                 User.deleteMany ({isAdmin: false}, (err, answ) => {
+    //                     if (err) {
+    //                         res.status(500);
+    //                         res.send ("Oops something went wrong");
+    //                     }
+    //                     res.status (200);
+    //                     res.send ("Tickets resetted");
+    //                 })
+    //             })
+    //         }
+    //         else {
+    //             res.status (400);
+    //             res.send ("Sorry only admin can reset the tickets");
+    //         }
+    //     }
+    //     catch (err) {
+    //         res.status (500)
+    //         res.send ("Oops something went wrong");
+    //     }
+    // }   
 })
 module.exports = router;
